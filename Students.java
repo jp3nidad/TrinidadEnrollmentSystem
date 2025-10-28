@@ -35,85 +35,97 @@ public class Students extends TrinidadEnrollmentSystem {
      * @param Yrlevel Student's year level
      * @return The newly created studid (Student ID) or -1 on failure.
      */
-    public int saveRecord(String Name, String Address, String Contact, String Gender, String Yrlevel) {
-        int nextStudID = -1;
+public int saveRecord(String Name, String Address, String Contact, String Gender, String Yrlevel) {
+    int nextStudID = -1;
+    String newUsername = null;
+    String newPassword = null;
+    String dbName = TrinidadEnrollmentSystem.db;
 
-        String newUsername = null;
-        String newPassword = null;
-        String dbName = TrinidadEnrollmentSystem.db;
+    try {
+        // --- 1. Determine next Student ID ---
+        String idQuery = "SELECT MAX(studid) FROM Students";
+        TrinidadEnrollmentSystem.rs = TrinidadEnrollmentSystem.st.executeQuery(idQuery);
 
-        try {
-            // --- 1. Determine next Student ID ---
-            String idQuery = "SELECT MAX(studid) FROM Students";
-            TrinidadEnrollmentSystem.rs = TrinidadEnrollmentSystem.st.executeQuery(idQuery);
-
-            nextStudID = 1001;
-            if (TrinidadEnrollmentSystem.rs.next()) {
-                int currentMaxID = TrinidadEnrollmentSystem.rs.getInt(1);
-                if (currentMaxID > 0) {
-                    nextStudID = currentMaxID + 1;
-                }
+        nextStudID = 1001;
+        if (TrinidadEnrollmentSystem.rs.next()) {
+            int currentMaxID = TrinidadEnrollmentSystem.rs.getInt(1);
+            if (currentMaxID > 0) {
+                nextStudID = currentMaxID + 1;
             }
+        }
 
-            // --- 2. Insert Student Record ---
-            String insertQuery = "INSERT INTO Students (studid, studname, studadd, studcontact, studgender, yrlvl) VALUES ("
-                    + nextStudID + ",'" + Name + "','" + Address + "','" + Contact + "','" + Gender + "','" + Yrlevel + "')";
-            TrinidadEnrollmentSystem.st.executeUpdate(insertQuery);
-            System.out.println("Record saved successfully. New Student ID: " + nextStudID);
+        // --- 2. Insert Student Record ---
+        String insertQuery = "INSERT INTO Students (studid, studname, studadd, studcontact, studgender, yrlvl) VALUES (" +
+                nextStudID + ",'" + Name + "','" + Address + "','" + Contact + "','" + Gender + "','" + Yrlevel + "')";
+        TrinidadEnrollmentSystem.st.executeUpdate(insertQuery);
+        System.out.println("Record saved successfully. New Student ID: " + nextStudID);
 
-            // --- 3. Prepare User Credentials ---
-            String newID = String.valueOf(nextStudID);
-            String sanitizedNameForUser = Name.replaceAll("\\s+", "");
-            newUsername = newID + sanitizedNameForUser;
+        // --- 3. Prepare User Credentials ---
+        String newID = String.valueOf(nextStudID);
+        String sanitizedNameForUser = Name.replaceAll("\\s+", "");
+        newUsername = newID + sanitizedNameForUser;
 
-            String rawPassword = "AdDU" + Name;
-            newPassword = rawPassword.replace("'", "''"); // Sanitize password for SQL
+        String rawPassword = "AdDU" + Name;
+        newPassword = rawPassword.replace("'", "''");
 
-            // --- 4. CREATE MySQL User (Global Command) ---
-            if ("root".equalsIgnoreCase(TrinidadEnrollmentSystem.uname)) {
-                Connection adminCon = null;
-                try {
-                    // 4A. Connect globally to run CREATE USER
-                    adminCon = DriverManager.getConnection(
+        // --- 4. CREATE MySQL User (Global Command) ---
+        if ("root".equalsIgnoreCase(TrinidadEnrollmentSystem.uname)) {
+            Connection adminCon = null;
+            try {
+                adminCon = DriverManager.getConnection(
                         "jdbc:mysql://" + TrinidadEnrollmentSystem.home + ":3306/",
                         TrinidadEnrollmentSystem.uname, TrinidadEnrollmentSystem.pswd
-                    );
+                );
 
-                    try (Statement adminSt = adminCon.createStatement()) {
+                try (Statement adminSt = adminCon.createStatement()) {
 
-                        // CREATE USER must run globally
+                    // ✅ Check first if the user already exists
+                    String checkUserQuery = "SELECT COUNT(*) FROM mysql.user WHERE user='" + newUsername + "' AND host='%'";
+                    ResultSet rsCheck = adminSt.executeQuery(checkUserQuery);
+
+                    boolean userExists = false;
+                    if (rsCheck.next()) {
+                        userExists = rsCheck.getInt(1) > 0;
+                    }
+
+                    // ✅ Only create user if it doesn’t exist
+                    if (!userExists) {
                         String createUserQuery = "CREATE USER '" + newUsername + "'@'%' IDENTIFIED BY '" + newPassword + "'";
                         adminSt.execute(createUserQuery);
                         System.out.println("MySQL User Created: " + newUsername);
-                        String grantQuery = "GRANT SELECT, INSERT, UPDATE, DELETE ON " + dbName + ".* TO '" + newUsername + "'@'%'";
-                        adminSt.execute(grantQuery);
-                        System.out.println("Privileges granted automatically to user: " + newUsername);
-
-                        // Make sure MySQL reloads privileges immediately
-                        adminSt.execute("FLUSH PRIVILEGES");
-
+                    } else {
+                        System.out.println("User '" + newUsername + "' already exists, skipping CREATE USER.");
                     }
 
-                } catch (SQLException userEx) {
-                    System.out.println("Failed to execute CREATE USER (Global Admin Task): " + userEx.getMessage());
-                    // If user creation fails, we still return the student ID as the DB record was saved.
-                } finally {
-                    if (adminCon != null) {
-                        try {
-                            adminCon.close();
-                        } catch (SQLException closeEx) {
-                            System.out.println("Error closing admin connection: " + closeEx.getMessage());
-                        }
+                    // ✅ Always grant privileges for the current database
+                    String grantQuery = "GRANT SELECT ON `" + dbName + "`.* TO '" + newUsername + "'@'%'";
+                    adminSt.execute(grantQuery);
+                    System.out.println("Privileges ensured for user: " + newUsername);
+
+                    adminSt.execute("FLUSH PRIVILEGES");
+                }
+
+            } catch (SQLException userEx) {
+                System.out.println("Failed to execute CREATE USER or GRANT: " + userEx.getMessage());
+            } finally {
+                if (adminCon != null) {
+                    try {
+                        adminCon.close();
+                    } catch (SQLException closeEx) {
+                        System.out.println("Error closing admin connection: " + closeEx.getMessage());
                     }
                 }
             }
-            return nextStudID;
-
-        } catch (Exception ex) {
-            System.out.println("Failed to save record: " + ex.getMessage());
-            return -1;
         }
+
+        return nextStudID;
+
+    } catch (Exception ex) {
+        System.out.println("Failed to save record: " + ex.getMessage());
+        return -1;
     }
+}
+
 
     /**
      * Deletes the student record and attempts to drop the corresponding MySQL user.

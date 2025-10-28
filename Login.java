@@ -58,11 +58,11 @@ public class Login extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
         jTextField1 = new javax.swing.JTextField();
-        jTextField2 = new javax.swing.JTextField();
         Login = new javax.swing.JButton();
         jLabel3 = new javax.swing.JLabel();
         jComboBox2 = new javax.swing.JComboBox<>();
         Submit = new javax.swing.JButton();
+        jPasswordField1 = new javax.swing.JPasswordField();
 
         jCheckBoxMenuItem1.setSelected(true);
         jCheckBoxMenuItem1.setText("jCheckBoxMenuItem1");
@@ -91,12 +91,6 @@ public class Login extends javax.swing.JFrame {
         jTextField1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jTextField1ActionPerformed(evt);
-            }
-        });
-
-        jTextField2.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jTextField2ActionPerformed(evt);
             }
         });
 
@@ -142,8 +136,8 @@ public class Login extends javax.swing.JFrame {
                         .addGap(30, 30, 30)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addComponent(jTextField1)
-                            .addComponent(jTextField2)
-                            .addComponent(jComboBox2, 0, 139, Short.MAX_VALUE)))
+                            .addComponent(jComboBox2, 0, 139, Short.MAX_VALUE)
+                            .addComponent(jPasswordField1)))
                     .addGroup(layout.createSequentialGroup()
                         .addGap(195, 195, 195)
                         .addComponent(Login))
@@ -160,10 +154,10 @@ public class Login extends javax.swing.JFrame {
                     .addComponent(jLabel1)
                     .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel2)
-                    .addComponent(jTextField2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(9, 9, 9)
+                    .addComponent(jPasswordField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(12, 12, 12)
                 .addComponent(Login)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -171,7 +165,7 @@ public class Login extends javax.swing.JFrame {
                     .addComponent(jComboBox2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(Submit)
-                .addContainerGap(81, Short.MAX_VALUE))
+                .addContainerGap(78, Short.MAX_VALUE))
         );
 
         pack();
@@ -181,13 +175,9 @@ public class Login extends javax.swing.JFrame {
         // TODO add your handling code here:
     }//GEN-LAST:event_jTextField1ActionPerformed
 
-    private void jTextField2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField2ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jTextField2ActionPerformed
-
     private void LoginActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_LoginActionPerformed
         String mysqlUsername = this.jTextField1.getText().trim();
-        String mysqlPassword = this.jTextField2.getText(); // Assuming jTextField2 is now JPasswordField or its content is the password string
+        String mysqlPassword = this.jPasswordField1.getText(); // Assuming jTextField2 is now JPasswordField or its content is the password string
 
      
         
@@ -266,22 +256,7 @@ public class Login extends javax.swing.JFrame {
                 jComboBox2.addItem(dbName);
             }
             
-            if (mysqlUsername.matches("1\\d{3}[a-zA-Z].*")) {
-                // If there is exactly one database available, automatically select it and submit.
-                if (jComboBox2.getItemCount() == 2) { // 1 item (placeholder) + 1 actual DB
-                    jComboBox2.setSelectedIndex(1); // Select the first actual database
-                    SubmitActionPerformed(null); // Trigger the submit action programmatically
-                    return; // Exit here if submission was successful
-                }
-            }
-            // --- END NEW LOGIC ---
-
-            if (jComboBox2.getItemCount() == 1) { // Only contains the initial item
-                 jComboBox2.addItem("No accessible databases found.");
-            }
             
-            jComboBox2.setEnabled(true);
-            Submit.setEnabled(true);
             
         } catch (SQLException ex) {
             String errorMsg = ex.getMessage();
@@ -302,29 +277,55 @@ public class Login extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(this, "Please log in successfully first.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        
+
         String selectedItem = (String) jComboBox2.getSelectedItem();
-        if (selectedItem == null || selectedItem.isEmpty() || selectedItem.contains("-- Select") || selectedItem.contains("-- Log in") || selectedItem.contains("No accessible")) {
+        if (selectedItem == null || selectedItem.isEmpty() || selectedItem.contains("-- Select") || selectedItem.contains("School Year") || selectedItem.contains("No accessible")) {
             JOptionPane.showMessageDialog(this, "Please select a valid database from the dropdown.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        
+
         String dbName = selectedItem;
-        
         TrinidadEnrollmentSystem.db = dbName;
         TrinidadEnrollmentSystem.uname = loggedInUsername;
         TrinidadEnrollmentSystem.pswd = loggedInPassword;
 
         try {
             TrinidadEnrollmentSystem.DBConnect();
+            logger.log(Level.INFO, "Successfully connected to database: {0}", dbName);
+
+            // --- ROUTING LOGIC ---
+            boolean isStudent = loggedInUsername.matches("1\\d{3}[a-zA-Z].*");
+            // Teacher format check (Starts with 3, digits, then letters)
+            boolean isTeacher = loggedInUsername.matches("3\\d{3}[a-zA-Z].*"); 
+
+            if ("root".equalsIgnoreCase(loggedInUsername)) {
+                StudentsForm SForm = new StudentsForm();
+                SForm.setVisible(true);
+                logger.log(Level.INFO, "Root user launching StudentsForm (Admin View).");
             
-            StudentsForm SForm = new StudentsForm();
-            SForm.setVisible(true);
-            this.dispose();
+            } else if (isTeacher) { // Check for Teacher FIRST
+                // *** Teacher routes to GradesForm ***
+                GradesForm GForm = new GradesForm(); 
+                GForm.setVisible(true);
+                logger.log(Level.INFO, "Teacher user launching GradesForm.");
+
+            } else if (isStudent) { 
+                StudRegistration RForm = new StudRegistration();
+                RForm.setVisible(true);
+                logger.log(Level.INFO, "Student user launching StudRegistration (Student View).");
+            
+            } else { // Fallback for any other user
+                StudRegistration RForm = new StudRegistration();
+                RForm.setVisible(true);
+                logger.log(Level.INFO, "Non-admin, non-student, non-teacher user launching StudRegistration (Fallback View).");
+            }
+            // --- END ROUTING LOGIC ---
+
+            this.dispose(); // Close the login window
 
         } catch (Exception ex) {
+            logger.log(Level.SEVERE, "Failed to launch application after DB select.", ex);
             JOptionPane.showMessageDialog(this, "Failed to connect to the selected database: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            System.out.println("Database connection failed: " + ex.getMessage());
         }
     }//GEN-LAST:event_SubmitActionPerformed
 
@@ -380,7 +381,7 @@ public class Login extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JPasswordField jPasswordField1;
     private javax.swing.JTextField jTextField1;
-    private javax.swing.JTextField jTextField2;
     // End of variables declaration//GEN-END:variables
 }

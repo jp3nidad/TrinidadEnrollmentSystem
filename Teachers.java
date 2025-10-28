@@ -1,8 +1,10 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.trinidadenrollment;
+
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.DriverManager;
 
 /**
  *
@@ -14,20 +16,36 @@ public class Teachers extends TrinidadEnrollmentSystem {
     String teachAddress;
     String teachContactNo;
     String teachDepartment;
-    
-    Teachers(){
+
+    Teachers() {
         connectDB();
     }
-    public void connectDB(){
+
+    public void connectDB() {
         TrinidadEnrollmentSystem.DBConnect();
     }
-    
-    public void saveRecord(String teachName, String teachAddress, String teachContactNo, String teachDepartment) {
+
+    /**
+     * Saves the teacher record and creates a corresponding MySQL user
+     * with automatic privilege grants.
+     * @param teachName Teacher's name
+     * @param teachAddress Teacher's address
+     * @param teachContactNo Teacher's contact number
+     * @param teachDepartment Teacher's department
+     * @return The newly created Tid (Teacher ID) or -1 on failure.
+     */
+public int saveRecord(String teachName, String teachAddress, String teachContactNo, String teachDepartment) {
+    int nextTeachID = -1;
+    String newUsername = null;
+    String newPassword = null;
+    String dbName = TrinidadEnrollmentSystem.db;
+
     try {
+        // --- 1. Determine next Teacher ID ---
         String idQuery = "SELECT MAX(Tid) FROM Teachers";
         TrinidadEnrollmentSystem.rs = TrinidadEnrollmentSystem.st.executeQuery(idQuery);
 
-        int nextTeachID = 3001;
+        nextTeachID = 3001; // default starting ID
         if (TrinidadEnrollmentSystem.rs.next()) {
             int currentMaxID = TrinidadEnrollmentSystem.rs.getInt(1);
             if (currentMaxID > 0) {
@@ -35,38 +53,146 @@ public class Teachers extends TrinidadEnrollmentSystem {
             }
         }
 
-        String insertQuery = "INSERT INTO Teachers (Tid, Tname, Tadd, Tcontact, Tdept) VALUES (" + nextTeachID + ",'" + teachName + "','" + teachAddress + "','" + teachContactNo + "','" + teachDepartment + "')";
+        // --- 2. Insert Teacher Record ---
+        String insertQuery = "INSERT INTO Teachers (Tid, Tname, Tadd, Tcontact, Tdept) VALUES (" +
+                nextTeachID + ",'" + teachName + "','" + teachAddress + "','" + teachContactNo + "','" + teachDepartment + "')";
         TrinidadEnrollmentSystem.st.executeUpdate(insertQuery);
         System.out.println("Record saved successfully. New Teacher ID: " + nextTeachID);
 
+        // --- 3. Prepare MySQL Credentials ---
+        String newID = String.valueOf(nextTeachID);
+        String sanitizedNameForUser = teachName.replaceAll("\\s+", "");
+        newUsername = newID + sanitizedNameForUser;
+
+        String rawPassword = "AdDU" + teachName;
+        newPassword = rawPassword.replace("'", "''");
+
+        // --- 4. CREATE MySQL User (Global Command, MySQL 5.x Safe) ---
+        if ("root".equalsIgnoreCase(TrinidadEnrollmentSystem.uname)) {
+            try (Connection adminCon = DriverManager.getConnection(
+                    "jdbc:mysql://" + TrinidadEnrollmentSystem.home + ":3306/",
+                    TrinidadEnrollmentSystem.uname, TrinidadEnrollmentSystem.pswd);
+                 Statement adminSt = adminCon.createStatement()) {
+
+                // 4A. Check if the user already exists
+                String checkUserQuery = "SELECT COUNT(*) FROM mysql.user WHERE user='" + newUsername + "' AND host='%'";
+                ResultSet rsCheck = adminSt.executeQuery(checkUserQuery);
+                boolean userExists = false;
+                if (rsCheck.next()) {
+                    userExists = rsCheck.getInt(1) > 0;
+                }
+
+                // 4B. Create the user only if it doesn't exist
+                if (!userExists) {
+                    String createUserQuery = "CREATE USER '" + newUsername + "'@'%' IDENTIFIED BY '" + newPassword + "'";
+                    adminSt.execute(createUserQuery);
+                    System.out.println("MySQL User Created: " + newUsername);
+                } else {
+                    System.out.println("User '" + newUsername + "' already exists; skipping CREATE USER.");
+                    // Optional: reset password for existing user
+                    // String setPass = "SET PASSWORD FOR '" + newUsername + "'@'%' = PASSWORD('" + newPassword + "')";
+                    // adminSt.execute(setPass);
+                    // System.out.println("Password updated for existing user: " + newUsername);
+                }
+
+                // 4C. Grant privileges safely
+                String grantQuery = "GRANT SELECT, INSERT, UPDATE ON `" + dbName + "`.* TO '" + newUsername + "'@'%'";
+                adminSt.execute(grantQuery);
+                System.out.println("Privileges granted (or ensured) for user: " + newUsername);
+
+                // 4D. Apply immediately
+                adminSt.execute("FLUSH PRIVILEGES");
+
+            } catch (SQLException userEx) {
+                System.out.println("Failed to execute CREATE/GRANT USER (Global Admin Task): " + userEx.getMessage());
+            }
+        }
+
+        return nextTeachID;
+
     } catch (Exception ex) {
-        System.out.println("Failed to save record: " + ex.getMessage());
+        System.out.println("Failed to save teacher record: " + ex.getMessage());
+        return -1;
     }
 }
-    public void deleteRecord(int teachID) {
-//        TrinidadEnrollmentSystem main = new TrinidadEnrollmentSystem();
-//        main.DBConnect();
-        String query = "delete from Teachers where Tid=" + teachID;
+
+    /**
+     * Deletes the teacher record and attempts to drop the corresponding MySQL user.
+     * @param teacherID The Tid of the teacher to delete.
+     */
+    public void deleteRecord(int teacherID) {
+        String teacherName = null;
+        String teacherIDStr = String.valueOf(teacherID);
+
+        // --- 1. Retrieve teacher name before deletion ---
         try {
-            TrinidadEnrollmentSystem.st.execute(query);
-            System.out.println("Information Deleted Successfully!");
+            String selectQuery = "SELECT Tname FROM Teachers WHERE Tid = " + teacherID;
+            TrinidadEnrollmentSystem.rs = TrinidadEnrollmentSystem.st.executeQuery(selectQuery);
+            if (TrinidadEnrollmentSystem.rs.next()) {
+                teacherName = TrinidadEnrollmentSystem.rs.getString("Tname");
+            }
         } catch (Exception ex) {
-            System.out.println("Failed to Delete Information.");
+            System.out.println("Error retrieving teacher name for deletion: " + ex.getMessage());
+        }
+
+        // --- 2. Delete teacher record ---
+        String deleteQuery = "DELETE FROM Teachers WHERE Tid=" + teacherID;
+        try {
+            TrinidadEnrollmentSystem.st.execute(deleteQuery);
+            System.out.println("Teacher Information Deleted Successfully!");
+        } catch (Exception ex) {
+            System.out.println("Failed to Delete Teacher Information: " + ex.getMessage());
+        }
+
+        // --- 3. Drop MySQL User ---
+        if ("root".equalsIgnoreCase(TrinidadEnrollmentSystem.uname) && teacherName != null) {
+            String sanitizedName = teacherName.replaceAll("\\s+", "");
+            String usernameToDrop = teacherIDStr + sanitizedName;
+
+            Connection adminCon = null;
+            try {
+                adminCon = DriverManager.getConnection(
+                    "jdbc:mysql://" + TrinidadEnrollmentSystem.home + ":3306/",
+                    TrinidadEnrollmentSystem.uname, TrinidadEnrollmentSystem.pswd
+                );
+
+                try (Statement adminSt = adminCon.createStatement()) {
+                    String dropUserQuery = "DROP USER '" + usernameToDrop + "'@'%'";
+                    adminSt.execute(dropUserQuery);
+                    System.out.println("MySQL User Dropped: " + usernameToDrop);
+                }
+            } catch (SQLException userEx) {
+                if (userEx.getErrorCode() == 1396) {
+                    System.out.println("MySQL User " + usernameToDrop + " does not exist.");
+                } else {
+                    System.out.println("Failed to drop MySQL user " + usernameToDrop + ": " + userEx.getMessage());
+                }
+            } finally {
+                if (adminCon != null) {
+                    try {
+                        adminCon.close();
+                    } catch (SQLException closeEx) {
+                        System.out.println("Error closing admin connection after drop: " + closeEx.getMessage());
+                    }
+                }
+            }
         }
     }
-    public void updateRecord(int teachID, String teachName, String teachAddress, String teachContactNo, String teachDepartment) {
-//        TrinidadEnrollmentSystem main = new TrinidadEnrollmentSystem();
-//        main.DBConnect();
-        String query = "update Teachers set Tname='" + teachName + "', Tadd='" + teachAddress + "', Tcontact='" + teachContactNo + "', Tdept='" + teachDepartment + "' where Tid=" + teachID + ";";
+
+    /**
+     * Updates teacher record.
+     */
+    public void updateRecord(int teacherID, String teachName, String teachAddress, String teachContactNo, String teachDepartment) {
+        String query = "UPDATE Teachers SET Tname='" + teachName + "', Tadd='" + teachAddress + "', Tcontact='" + teachContactNo + "', Tdept='" + teachDepartment + "' WHERE Tid=" + teacherID;
         try {
             TrinidadEnrollmentSystem.st.execute(query);
-            System.out.println("Information Updated Successfully!");
+            System.out.println("Teacher Information Updated Successfully!");
         } catch (Exception ex) {
-            System.out.println("Failed to Update Information.");
+            System.out.println("Failed to Update Teacher Information: " + ex.getMessage());
         }
     }
+
     public void loadRecord() {
-        System.out.println("Records Loaded Successfully!");
+        // Optional: Implement similar loading logic as Students if needed
     }
-   
 }
