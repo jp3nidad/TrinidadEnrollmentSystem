@@ -134,7 +134,7 @@
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
                           <Component id="Address" max="32767" attributes="0"/>
-                          <Component id="Contact" max="32767" attributes="0"/>
+                          <Component id="Course" max="32767" attributes="0"/>
                           <Component id="Gender" max="32767" attributes="0"/>
                           <Component id="YrLevel" alignment="0" max="32767" attributes="0"/>
                           <Group type="102" attributes="0">
@@ -178,7 +178,7 @@
                       </Group>
                       <EmptySpace min="-2" pref="9" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="3" attributes="0">
-                          <Component id="Contact" alignment="3" min="-2" max="-2" attributes="0"/>
+                          <Component id="Course" alignment="3" min="-2" max="-2" attributes="0"/>
                           <Component id="jLabel3" alignment="3" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace max="-2" attributes="0"/>
@@ -228,7 +228,10 @@
     </Component>
     <Component class="javax.swing.JTextField" name="Address">
     </Component>
-    <Component class="javax.swing.JTextField" name="Contact">
+    <Component class="javax.swing.JTextField" name="Course">
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="CourseActionPerformed"/>
+      </Events>
     </Component>
     <Component class="javax.swing.JTextField" name="Gender">
     </Component>
@@ -246,7 +249,7 @@
     </Component>
     <Component class="javax.swing.JLabel" name="jLabel3">
       <Properties>
-        <Property name="text" type="java.lang.String" value="Enter Contact"/>
+        <Property name="text" type="java.lang.String" value="Enter Course"/>
       </Properties>
     </Component>
     <Component class="javax.swing.JLabel" name="jLabel4">
@@ -303,7 +306,7 @@
                 <Column editable="true" title="Student ID" type="java.lang.Integer"/>
                 <Column editable="true" title="Name" type="java.lang.String"/>
                 <Column editable="true" title="Address" type="java.lang.String"/>
-                <Column editable="true" title="Contact" type="java.lang.String"/>
+                <Column editable="true" title="Course" type="java.lang.String"/>
                 <Column editable="true" title="Gender" type="java.lang.String"/>
                 <Column editable="true" title="YrLevel" type="java.lang.String"/>
               </Table>

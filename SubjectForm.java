@@ -356,7 +356,7 @@ private void ShowClassList(int subjID){
     DefaultTableModel tblModel = (DefaultTableModel) jTable1.getModel();
     tblModel.setRowCount(0);
 
-    String query = "SELECT st.studid, st.studname, st.studadd, st.studcontact, st.studgender, st.yrlvl " +
+    String query = "SELECT st.studid, st.studname, st.studadd, st.studcrs, st.studgender, st.yrlvl " +
                    "FROM Enroll e " +
                    "JOIN Students st ON e.studid = st.studid " + 
                    "WHERE e.subjid = " + subjID;               
@@ -367,7 +367,7 @@ private void ShowClassList(int subjID){
                 TrinidadEnrollmentSystem.rs.getString("studid"),
                 TrinidadEnrollmentSystem.rs.getString("studname"),
                 TrinidadEnrollmentSystem.rs.getString("studadd"),
-                TrinidadEnrollmentSystem.rs.getString("studcontact"),
+                TrinidadEnrollmentSystem.rs.getString("studcrs"),
                 TrinidadEnrollmentSystem.rs.getString("studgender"),
                 TrinidadEnrollmentSystem.rs.getString("yrlvl")
             };

@@ -39,7 +39,7 @@ public class StudentsForm extends javax.swing.JFrame {
         StudentID = new javax.swing.JTextField();
         Name = new javax.swing.JTextField();
         Address = new javax.swing.JTextField();
-        Contact = new javax.swing.JTextField();
+        Course = new javax.swing.JTextField();
         Gender = new javax.swing.JTextField();
         YrLevel = new javax.swing.JTextField();
         jLabel1 = new javax.swing.JLabel();
@@ -90,11 +90,17 @@ public class StudentsForm extends javax.swing.JFrame {
             }
         });
 
+        Course.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                CourseActionPerformed(evt);
+            }
+        });
+
         jLabel1.setText("Student ID");
 
         jLabel2.setText("Enter Name");
 
-        jLabel3.setText("Enter Contact");
+        jLabel3.setText("Enter Course");
 
         jLabel4.setText("Enter Address");
 
@@ -136,7 +142,7 @@ public class StudentsForm extends javax.swing.JFrame {
                 {null, null, null, null, null, null}
             },
             new String [] {
-                "Student ID", "Name", "Address", "Contact", "Gender", "YrLevel"
+                "Student ID", "Name", "Address", "Course", "Gender", "YrLevel"
             }
         ) {
             Class[] types = new Class [] {
@@ -289,7 +295,7 @@ public class StudentsForm extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(Address)
-                            .addComponent(Contact)
+                            .addComponent(Course)
                             .addComponent(Gender)
                             .addComponent(YrLevel)
                             .addGroup(layout.createSequentialGroup()
@@ -323,7 +329,7 @@ public class StudentsForm extends javax.swing.JFrame {
                             .addComponent(jLabel4))
                         .addGap(9, 9, 9)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(Contact, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(Course, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jLabel3))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -367,13 +373,13 @@ public class StudentsForm extends javax.swing.JFrame {
 
     private void jButton1MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jButton1MouseClicked
         Students student = new Students();
-    student.saveRecord(Name.getText(), Address.getText(), Contact.getText(), Gender.getText(), YrLevel.getText());
+    student.saveRecord(Name.getText(), Address.getText(), Course.getText(), Gender.getText(), YrLevel.getText());
     
     showRecords();
     StudentID.setText("");
         Name.setText("");
         Address.setText("");
-        Contact.setText("");  
+        Course.setText("");  
         Gender.setText("");
         YrLevel.setText("");  
     }//GEN-LAST:event_jButton1MouseClicked
@@ -386,20 +392,20 @@ public class StudentsForm extends javax.swing.JFrame {
         StudentID.setText("");
         Name.setText("");
         Address.setText("");
-        Contact.setText("");  
+        Course.setText("");  
         Gender.setText("");
         YrLevel.setText("");  
     }//GEN-LAST:event_jButton2MouseClicked
 
     private void jButton3MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jButton3MouseClicked
         Students student = new Students();
-        student.updateRecord(Integer.parseInt(StudentID.getText()), Name.getText(), Address.getText(), Contact.getText(), Gender.getText(), YrLevel.getText());
+        student.updateRecord(Integer.parseInt(StudentID.getText()), Name.getText(), Address.getText(), Course.getText(), Gender.getText(), YrLevel.getText());
         
         showRecords();
         StudentID.setText("");
         Name.setText("");
         Address.setText("");
-        Contact.setText("");  
+        Course.setText("");  
         Gender.setText("");
         YrLevel.setText("");  
     }//GEN-LAST:event_jButton3MouseClicked
@@ -423,14 +429,14 @@ public class StudentsForm extends javax.swing.JFrame {
         String id = studForm_Table.getValueAt(selectedRow, 0).toString(); //
         String name = studForm_Table.getValueAt(selectedRow, 1).toString(); //
         String address = studForm_Table.getValueAt(selectedRow, 2).toString(); //
-        String contactNo = studForm_Table.getValueAt(selectedRow, 3).toString(); //
+        String course = studForm_Table.getValueAt(selectedRow, 3).toString(); //
         String gender = studForm_Table.getValueAt(selectedRow, 4).toString(); //
         String yrLevel = studForm_Table.getValueAt(selectedRow, 5).toString(); //
 
         StudentID.setText(id); //
         Name.setText(name); //
         Address.setText(address); //
-        Contact.setText(contactNo); //
+        Course.setText(course); //
         Gender.setText(gender); //
         YrLevel.setText(yrLevel); //
         
@@ -535,7 +541,7 @@ public class StudentsForm extends javax.swing.JFrame {
                     + "studid INT PRIMARY KEY AUTO_INCREMENT,"
                     + "studname VARCHAR(100) NOT NULL,"
                     + "studadd VARCHAR(200) NOT NULL,"
-                    + "studcontact VARCHAR(100) NOT NULL,"
+                    + "studcrs VARCHAR(100) NOT NULL,"
                     + "studgender VARCHAR(20) NOT NULL,"
                     + "yrlvl VARCHAR(20) NOT NULL"
                     + ")");
@@ -631,7 +637,7 @@ public class StudentsForm extends javax.swing.JFrame {
                     + "studid INT PRIMARY KEY AUTO_INCREMENT,"
                     + "studname VARCHAR(100) NOT NULL,"
                     + "studadd VARCHAR(200) NOT NULL,"
-                    + "studcontact VARCHAR(100) NOT NULL,"
+                    + "studcrs VARCHAR(100) NOT NULL,"
                     + "studgender VARCHAR(20) NOT NULL,"
                     + "yrlvl VARCHAR(20) NOT NULL"
                     + ")");
@@ -728,7 +734,7 @@ public class StudentsForm extends javax.swing.JFrame {
                     + "studid INT PRIMARY KEY AUTO_INCREMENT,"
                     + "studname VARCHAR(100) NOT NULL,"
                     + "studadd VARCHAR(200) NOT NULL,"
-                    + "studcontact VARCHAR(100) NOT NULL,"
+                    + "studcrs VARCHAR(100) NOT NULL,"
                     + "studgender VARCHAR(20) NOT NULL,"
                     + "yrlvl VARCHAR(20) NOT NULL"
                     + ")");
@@ -808,6 +814,10 @@ public class StudentsForm extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(this, "Error creating database/tables: " + ex.getMessage());
         }
     }//GEN-LAST:event_jMenuItem6ActionPerformed
+
+    private void CourseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_CourseActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_CourseActionPerformed
 public void showRecords() {
         DefaultTableModel tblModel = (DefaultTableModel) studForm_Table.getModel();
         tblModel.setRowCount(0);
@@ -821,7 +831,7 @@ public void showRecords() {
                 String a = main.rs.getString("studid");
                 String b = main.rs.getString("studname");
                 String c = main.rs.getString("studadd");
-                String d = main.rs.getString("studcontact");
+                String d = main.rs.getString("studcrs");
                 String e = main.rs.getString("studgender");
                 String f = main.rs.getString("yrlvl");
                 String[] item = {a,b,c,d,e,f};
@@ -899,7 +909,7 @@ public void showRecords() {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField Address;
-    private javax.swing.JTextField Contact;
+    private javax.swing.JTextField Course;
     private javax.swing.JTextField Gender;
     private javax.swing.JTextField Name;
     private javax.swing.JTextField StudentID;
