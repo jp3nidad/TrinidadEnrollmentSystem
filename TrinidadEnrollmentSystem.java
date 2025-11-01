@@ -13,7 +13,7 @@ public class TrinidadEnrollmentSystem {
     public static String db;
     public static String uname = "root";
     public static String pswd = "root";
-    public static String home = "192.168.0.174";
+    public static String home = "192.168.254.114";
     
         public static int currentlySelectedSubjectId = -1;  
 

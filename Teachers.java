@@ -123,6 +123,7 @@ public int saveRecord(String teachName, String teachAddress, String teachContact
     public void deleteRecord(int teacherID) {
         String teacherName = null;
         String teacherIDStr = String.valueOf(teacherID);
+        String dbName = TrinidadEnrollmentSystem.db; // Get the current database name
 
         // --- 1. Retrieve teacher name before deletion ---
         try {
@@ -144,28 +145,36 @@ public int saveRecord(String teachName, String teachAddress, String teachContact
             System.out.println("Failed to Delete Teacher Information: " + ex.getMessage());
         }
 
-        // --- 3. Drop MySQL User ---
+        // --- 3. Revoke Privileges (Requires root/admin privileges) ---
         if ("root".equalsIgnoreCase(TrinidadEnrollmentSystem.uname) && teacherName != null) {
             String sanitizedName = teacherName.replaceAll("\\s+", "");
-            String usernameToDrop = teacherIDStr + sanitizedName;
+            String usernameToRevoke = teacherIDStr + sanitizedName;
 
             Connection adminCon = null;
             try {
                 adminCon = DriverManager.getConnection(
+                    // Use the correct static constant HOME_IP
                     "jdbc:mysql://" + TrinidadEnrollmentSystem.home + ":3306/",
                     TrinidadEnrollmentSystem.uname, TrinidadEnrollmentSystem.pswd
                 );
 
                 try (Statement adminSt = adminCon.createStatement()) {
-                    String dropUserQuery = "DROP USER '" + usernameToDrop + "'@'%'";
-                    adminSt.execute(dropUserQuery);
-                    System.out.println("MySQL User Dropped: " + usernameToDrop);
+                    // *** MODIFIED LOGIC: REVOKE privileges ***
+                    // Revoke the same privileges that were granted in saveRecord
+                    String revokeQuery = "REVOKE SELECT, INSERT, UPDATE, DELETE ON `" + dbName + "`.* FROM '" + usernameToRevoke + "'@'%'";
+                    adminSt.execute(revokeQuery);
+                    
+                    // Flush privileges to ensure the change takes effect
+                    adminSt.execute("FLUSH PRIVILEGES"); 
+                    
+                    System.out.println("Privileges revoked on " + dbName + " for user: " + usernameToRevoke);
                 }
             } catch (SQLException userEx) {
-                if (userEx.getErrorCode() == 1396) {
-                    System.out.println("MySQL User " + usernameToDrop + " does not exist.");
+                // Catch specific error if user doesn't exist
+                if (userEx.getErrorCode() == 1396) { // 1396 = Operation DROP USER failed
+                     System.out.println("MySQL User " + usernameToRevoke + " does not exist (already dropped or never created).");
                 } else {
-                    System.out.println("Failed to drop MySQL user " + usernameToDrop + ": " + userEx.getMessage());
+                    System.out.println("Failed to revoke privileges for user " + usernameToRevoke + ": " + userEx.getMessage());
                 }
             } finally {
                 if (adminCon != null) {

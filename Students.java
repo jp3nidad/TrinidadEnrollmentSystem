@@ -134,6 +134,7 @@ public int saveRecord(String Name, String Address, String Contact, String Gender
     public void deleteRecord(int StudentID) {
         String studentName = null;
         String studentIDStr = String.valueOf(StudentID);
+        String dbName = TrinidadEnrollmentSystem.db; // Get the current database name
 
         // --- 1. Retrieve the student name before deletion ---
         try {
@@ -157,40 +158,45 @@ public int saveRecord(String Name, String Address, String Contact, String Gender
             // return; // Uncomment to stop if DB delete fails
         }
 
-        // --- 3. Drop MySQL User (Requires root/admin privileges) ---
+        // --- 3. Revoke Privileges (Requires root/admin privileges) ---
         if ("root".equalsIgnoreCase(TrinidadEnrollmentSystem.uname) && studentName != null) {
 
             String sanitizedName = studentName.replaceAll("\\s+", "");
-            String usernameToDrop = studentIDStr + sanitizedName;
+            String usernameToRevoke = studentIDStr + sanitizedName;
 
             Connection adminCon = null;
             try {
-                 // Connect globally to execute administrative DROP USER command
+                 // Connect globally to execute administrative REVOKE command
                 adminCon = DriverManager.getConnection(
+                    // Use the correct static constant HOME_IP
                     "jdbc:mysql://" + TrinidadEnrollmentSystem.home + ":3306/",
                     TrinidadEnrollmentSystem.uname, TrinidadEnrollmentSystem.pswd
                 );
 
                 try (Statement adminSt = adminCon.createStatement()) {
-                    // *** FIX: Simplified DROP USER syntax ***
-                    // Removed "IF EXISTS" which caused syntax error on older MySQL
-                    String dropUserQuery = "DROP USER '" + usernameToDrop + "'@'%'";
-                    adminSt.execute(dropUserQuery);
-                    System.out.println("MySQL User Dropped: " + usernameToDrop);
+                    // --- MODIFIED LOGIC: REVOKE PRIVILEGES INSTEAD OF DROP USER ---
+                    // Revoke the same privileges that were granted in saveRecord
+                    String revokeQuery = "REVOKE SELECT, INSERT, UPDATE, DELETE ON `" + dbName + "`.* FROM '" + usernameToRevoke + "'@'%'";
+                    adminSt.execute(revokeQuery);
+                    
+                    // Flush privileges to ensure the change takes effect
+                    adminSt.execute("FLUSH PRIVILEGES"); 
+                    
+                    System.out.println("Privileges revoked on " + dbName + " for user: " + usernameToRevoke);
                 }
             } catch (SQLException userEx) {
                 // Catch specific error if user doesn't exist (MySQL error code 1396)
                 if (userEx.getErrorCode() == 1396) {
-                     System.out.println("MySQL User " + usernameToDrop + " does not exist (already dropped or never created).");
+                     System.out.println("MySQL User " + usernameToRevoke + " does not exist (already dropped or never created).");
                 } else {
-                    System.out.println("Failed to drop MySQL user " + usernameToDrop + ": " + userEx.getMessage());
+                    System.out.println("Failed to revoke privileges for user " + usernameToRevoke + ": " + userEx.getMessage());
                 }
             } finally {
                 if (adminCon != null) {
                     try {
                         adminCon.close();
                     } catch (SQLException closeEx) {
-                        System.out.println("Error closing admin connection after drop: " + closeEx.getMessage());
+                        System.out.println("Error closing admin connection after revoke: " + closeEx.getMessage());
                     }
                 }
             }

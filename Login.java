@@ -182,7 +182,7 @@ public class Login extends javax.swing.JFrame {
      
         
         // Use the connection IP from the main system class
-        String home = "192.168.0.174"; 
+        String home = "192.168.254.114"; 
         
         // This attempts to connect to the MySQL SERVER, not a specific DB
         try (Connection testConn = DriverManager.getConnection(
