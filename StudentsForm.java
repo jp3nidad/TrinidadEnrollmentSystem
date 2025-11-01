@@ -24,7 +24,7 @@ public class StudentsForm extends javax.swing.JFrame {
     public StudentsForm() {
         initComponents();
         StudentID.setEditable(false);
-
+       
     }
 
     /**
@@ -444,7 +444,9 @@ public class StudentsForm extends javax.swing.JFrame {
         showRecords();
         
         Students student = new Students();
-        student.loadRecord();        // TODO add your handling code here:
+        student.loadRecord();       
+        
+        jLabel7.setText("Student Form " +TrinidadEnrollmentSystem.db);
     }//GEN-LAST:event_formWindowOpened
 
     private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem1ActionPerformed
@@ -884,11 +886,13 @@ public void showRecords() {
         }
         //</editor-fold>
         //</editor-fold>
-
+        
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 new StudentsForm().setVisible(true);
+                
+                
             }
         });
     }

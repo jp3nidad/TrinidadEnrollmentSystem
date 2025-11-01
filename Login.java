@@ -176,100 +176,84 @@ public class Login extends javax.swing.JFrame {
     }//GEN-LAST:event_jTextField1ActionPerformed
 
     private void LoginActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_LoginActionPerformed
-        String mysqlUsername = this.jTextField1.getText().trim();
-        String mysqlPassword = this.jPasswordField1.getText(); // Assuming jTextField2 is now JPasswordField or its content is the password string
-
-     
+    String mysqlUsername = this.jTextField1.getText().trim();
+    String mysqlPassword = new String(this.jPasswordField1.getPassword());
+    String home = "192.168.254.114"; 
         
-        // Use the connection IP from the main system class
-        String home = "192.168.254.114"; 
-        
-        // This attempts to connect to the MySQL SERVER, not a specific DB
-        try (Connection testConn = DriverManager.getConnection(
-                "jdbc:mysql://" + home + ":3306/?zeroDateTimeBehavior=CONVERT_TO_NULL&connectTimeout=5000", 
-                mysqlUsername, mysqlPassword);
-             Statement stmt = testConn.createStatement()) 
-        {
-            System.out.println("MySQL Login Successful!");
-            
-            loggedIn = true;
-            this.loggedInUsername = mysqlUsername;
-            this.loggedInPassword = mysqlPassword;
+    try (Connection testConn = DriverManager.getConnection(
+            "jdbc:mysql://" + home + ":3306/?zeroDateTimeBehavior=CONVERT_TO_NULL&connectTimeout=5000", 
+            mysqlUsername, mysqlPassword);
+         Statement stmt = testConn.createStatement()) 
+    {
+        System.out.println("MySQL Login Successful!");
+        loggedIn = true;
+        this.loggedInUsername = mysqlUsername;
+        this.loggedInPassword = mysqlPassword;
 
-            java.util.ArrayList<String> accessibleDatabases = new java.util.ArrayList<>();
+        java.util.ArrayList<String> accessibleDatabases = new java.util.ArrayList<>();
 
-            boolean isStudent = mysqlUsername.matches("1\\d{3}[a-zA-Z].*");
+        // --- ROOT USER: Full access ---
+        if ("root".equalsIgnoreCase(mysqlUsername)) {
+            try (ResultSet rs = stmt.executeQuery("SHOW DATABASES")) {
+                while (rs.next()) {
+                    String dbName = rs.getString(1);
+                    if (dbName.matches("^(1st|2nd|Summer)_SY20\\d{2}_20\\d{2}$")) {
+                        accessibleDatabases.add(dbName);
+                    }
+                }
+            }
+            logger.info("Root user: full access granted to all term databases.");
+        } 
+        // --- OTHER USERS: Determine access from GRANTS ---
+        else {
+            try (ResultSet rs = stmt.executeQuery("SHOW GRANTS FOR CURRENT_USER()")) {
+                Pattern dbPattern = Pattern.compile("ON `([^`]+)`\\.\\*");
+                while (rs.next()) {
+                    String grant = rs.getString(1);
+                    Matcher matcher = dbPattern.matcher(grant);
 
-            if ("root".equalsIgnoreCase(mysqlUsername)) {
-                // Method 1A: Root user uses SHOW DATABASES (full visibility)
-                try (ResultSet rs = stmt.executeQuery("SHOW DATABASES")) {
-                    while (rs.next()) {
-                        String dbName = rs.getString(1);
-                        if (dbName.matches("^(1st|2nd|Summer)_SY20\\d{2}_20\\d{2}$")) {
+                    while (matcher.find()) {
+                        String dbName = matcher.group(1);
+                        if (dbName.matches("^(1st|2nd|Summer)_SY20\\d{2}_20\\d{2}$") 
+                                && !accessibleDatabases.contains(dbName)) {
                             accessibleDatabases.add(dbName);
                         }
                     }
                 }
-            } else if (isStudent) {
-                 // METHOD 1B: STUDENT GRANTS CHECK (The correct, granular method)
-                 // This method relies on the admin having granted SELECT on the specific databases.
-                 try (ResultSet rs = stmt.executeQuery("SHOW GRANTS FOR CURRENT_USER()")) {
-                    Pattern dbPattern = Pattern.compile("ON `([^`]+)`\\.\\*");
-                    while (rs.next()) {
-                        String grant = rs.getString(1);
-                        
-                        // Extract DB name from grants
-                        Matcher matcher = dbPattern.matcher(grant);
-                        
-                        while (matcher.find()) {
-                            String dbName = matcher.group(1);
-                            if (dbName.matches("^(1st|2nd|Summer)_SY20\\d{2}_20\\d{2}$")) {
-                                if (!accessibleDatabases.contains(dbName)) {
-                                    accessibleDatabases.add(dbName);
-                                }
-                            }
-                        }
-                    }
-                } catch (SQLException grantEx) {
-                    // Log failure, but the list remains empty, which is correct if the student has no grants.
-                    logger.log(Level.WARNING, "SHOW GRANTS failed for student. The list will remain empty if no grants were found.", grantEx);
-                }
-            } else {
-                // Method 1C: General non-root user (e.g., Teacher) uses SHOW DATABASES
-                 try (ResultSet rs = stmt.executeQuery("SHOW DATABASES")) {
-                    while (rs.next()) {
-                        String dbName = rs.getString(1);
-                        if (dbName.matches("^(1st|2nd|Summer)_SY20\\d{2}_20\\d{2}$")) {
-                            if (!accessibleDatabases.contains(dbName)) {
-                                accessibleDatabases.add(dbName);
-                            }
-                        }
-                    }
-                }
+            } catch (SQLException grantEx) {
+                logger.log(Level.WARNING, 
+                    "SHOW GRANTS failed. The list may remain empty if no grants were found.", grantEx);
             }
-            
-            java.util.Collections.sort(accessibleDatabases);
-            jComboBox2.removeAllItems();
-           
-            
+        }
+
+        // --- Sort and load databases into ComboBox ---
+        java.util.Collections.sort(accessibleDatabases);
+        jComboBox2.removeAllItems();
+
+        if (accessibleDatabases.isEmpty()) {
+            jComboBox2.addItem("No accessible databases");
+            logger.info("No databases accessible for this user.");
+        } else {
             for (String dbName : accessibleDatabases) {
                 jComboBox2.addItem(dbName);
             }
-            
-            
-            
-        } catch (SQLException ex) {
-            String errorMsg = ex.getMessage();
-            if (errorMsg.contains("Access denied")) {
-                 errorMsg = "Access denied";
-            } else if (errorMsg.contains("The driver was unable to establish a connection")) {
-                 errorMsg = "Could not connect to MySQL server. Check IP and port configuration.";
-            }
-            logger.log(Level.SEVERE, "Login Failed: {0}", errorMsg);
-            JOptionPane.showMessageDialog(this, "Login Failed: " + errorMsg, "Access Denied", JOptionPane.ERROR_MESSAGE);
-        } catch (Exception ex) {
-             logger.log(Level.SEVERE, "Error during login process.", ex);
+            logger.info("Accessible databases: " + accessibleDatabases);
         }
+
+    } catch (SQLException ex) {
+        String errorMsg = ex.getMessage();
+        if (errorMsg.contains("Access denied")) {
+             errorMsg = "Access denied: Invalid username or password.";
+        } else if (errorMsg.contains("The driver was unable to establish a connection")) {
+             errorMsg = "Could not connect to MySQL server. Check IP and port configuration.";
+        }
+        logger.log(Level.SEVERE, "Login Failed: {0}", errorMsg);
+        JOptionPane.showMessageDialog(this, "Login Failed: " + errorMsg, "Access Denied", JOptionPane.ERROR_MESSAGE);
+    } catch (Exception ex) {
+         logger.log(Level.SEVERE, "Unexpected error during login process.", ex);
+         JOptionPane.showMessageDialog(this, "Unexpected error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
     }//GEN-LAST:event_LoginActionPerformed
 
     private void SubmitActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_SubmitActionPerformed
